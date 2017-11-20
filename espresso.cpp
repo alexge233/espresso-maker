@@ -172,8 +172,8 @@ caffe2::TensorCUDA make_cuda_tensor::operator()(const gpu_mat image,
     else
         sample.convertTo(mfloat, CV_32FC1, 1.0, -128);
 
-    cv::cuda::GpuMat result(3);
-    cv::cuda::split(mfloat, &result);
+    std::vector<cv::cuda::GpuMat> result;
+    cv::cuda::split(mfloat, result);
 
     return copy_cuda_data()(result,
                             sample.channels(),
