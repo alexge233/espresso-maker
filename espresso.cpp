@@ -67,93 +67,38 @@ gpu_mat make_float::operator()(const gpu_mat arg,
     return mfloat;
 }
 
-gpu_mat split_single::operator()(const gpu_mat arg) const
+void channel_split::operator()(caffe2::TensorCUDA & tensor,
+                               const gpu_mat mfloat) const
 {
-    cv::cuda::GpuMat result(3);
-    cv::cuda::split(arg, &result);
-    return result;
+    auto ptr = tensor.mutable_data<float>();
+    size_t width = mfloat.cols * mfloat.rows;
+    std::vector<cv::cuda::GpuMat> input_channels {
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[0]),
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[width]),
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[width * 2])
+    };
+    cv::cuda::split(mfloat, input_channels);
 }
 
-std::vector<gpu_mat> split_vector::operator()(const gpu_mat arg) const
+void make_cuda_tensor::operator()(caffe2::TensorCUDA & tensor,
+                                  const gpu_mat image,
+                                  unsigned int channels,
+                                  cv::Size geometry) const
 {
-    std::vector<cv::cuda::GpuMat> input_channels(3);
-    cv::cuda::split(arg, input_channels);
-    return input_channels;
-}
-
-caffe2::TensorCUDA copy_cuda_data::operator()(const std::vector<gpu_mat> arg,
-                                              unsigned int channels,
-                                              unsigned int rows,
-                                              unsigned int cols) const
-{
-    caffe2::TensorCUDA tensor;
-    std::vector<caffe2::TIndex> dims({1, channels, rows, cols});
-    tensor.Resize(dims);
-    
-    // the tensor is (224 * 224) = 50176 * 3 (channels) = 150528
-    // or simply put (rows * cols) * channels
-    float * t_ptr = tensor.mutable_data<float>();
-
-    // iterate arg and copy one at a time
-    unsigned int i = 0;
-    for (const auto & gpu_mat : arg) {
-        // pointer to GPU Matrix
-        const void * src = gpu_mat.ptr<float>();
-        // size of GPU Matrix = rows * cols
-        size_t count = (gpu_mat.rows * gpu_mat.cols);
-        // set tensor pointer
-        void * dst = &t_ptr[i];
-        // copy from device to device
-        auto res = cudaMemcpy(dst, src, count, cudaMemcpyDeviceToDevice);
-        if (res != cudaSuccess) {
-            throw std::runtime_error(cudaGetErrorName(res));
-        }
-        i += count;
-    }
-    return tensor;
-}
-
-caffe2::TensorCUDA copy_cuda_data::operator()(const gpu_mat arg,
-                                              unsigned int channels,
-                                              unsigned int rows,
-                                              unsigned int cols) const
-{
-    caffe2::TensorCUDA tensor;
-    std::vector<caffe2::TIndex> dims({1, channels, rows, cols});
-    tensor.Resize(dims);
-    
-    // the tensor is (224 * 224) = 50176 * 3 (channels) = 150528
-    // or simply put (rows * cols) * channels
-    float * t_ptr = tensor.mutable_data<float>();
-    // pointer to GPU Matrix
-    const void * src = arg.ptr<float>();
-    // size of GPU Matrix = rows * cols
-    size_t count = (arg.rows * arg.cols);
-    // set tensor pointer
-    void * dst = &t_ptr;
-    // copy from device to device
-    auto res = cudaMemcpy(dst, src, count, cudaMemcpyDeviceToDevice);
-    if (res != cudaSuccess) {
-        throw std::runtime_error(cudaGetErrorName(res));
-    }
-    return tensor;
-}
-
-caffe2::TensorCUDA make_cuda_tensor::operator()(const gpu_mat image,
-                                                unsigned int channels,
-                                                cv::Size geometry) const
-{
+    // resize image to the geometry needed (usually 224 * 224)
     cv::cuda::GpuMat resized;
     if (image.size() != geometry)
         cv::cuda::resize(image, resized, geometry);
     else
         resized = image;
 
+    // crop the image if needed
     cv::Rect crop((resized.cols - geometry.height) / 2,
                   (resized.rows - geometry.width) / 2, 
                   geometry.height,
                   geometry.width);
 
+    // convert colour to BGR
     cv::cuda::GpuMat sample;
     if (resized.channels() == 3 && channels == 1)
         cv::cuda::cvtColor(resized, sample, cv::COLOR_BGR2GRAY);
@@ -172,13 +117,14 @@ caffe2::TensorCUDA make_cuda_tensor::operator()(const gpu_mat image,
     else
         sample.convertTo(mfloat, CV_32FC1, 1.0, -128);
 
-    std::vector<cv::cuda::GpuMat> result;
-    cv::cuda::split(mfloat, result);
-
-    return copy_cuda_data()(result,
-                            sample.channels(),
-                            sample.rows,
-                            sample.cols);
+    auto ptr = tensor.mutable_data<float>();
+    size_t width = mfloat.cols * mfloat.rows;
+    std::vector<cv::cuda::GpuMat> input_channels {
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[0]),
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[width]),
+        cv::cuda::GpuMat(mfloat.rows, mfloat.cols, CV_32F, &ptr[width * 2])
+    };
+    cv::cuda::split(mfloat, input_channels);
 }
 
 }

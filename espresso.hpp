@@ -20,57 +20,41 @@ using gpu_mat = cv::cuda::GpuMat;
 struct preprocess
 {
     gpu_mat operator()(const gpu_mat arg,
-                       cv::Size geometry) const;
+                       cv::Size geometry = cv::Size(224,224)) const;
 };
 
-// @brief exract a Float 3 Channel Matrix
-struct split_single
+/**
+ * @brief splits the BRG float data from @param arg
+ *        into the tensor
+ */
+struct channel_split
 {
-    gpu_mat operator()(const gpu_mat arg) const;
-};
-
-struct split_vector
-{
-    std::vector<gpu_mat> operator()(const gpu_mat arg) const;
+    void operator()(caffe2::TensorCUDA & tensor,
+                    const gpu_mat arg) const;
 };
 
 // @brief convert the Matrix to the correct type
 struct convert
 {
     gpu_mat operator()(const gpu_mat arg,
-                       unsigned int channels) const;
+                       unsigned int channels = 3) const;
 };
 
 // @brief make a float matrix from the BGR matrix
 struct make_float
 {
     gpu_mat operator()(const gpu_mat arg,
-                       unsigned int channels) const;
-};
-
-// @brief copy byte-by-byte (device-to-device) for the tensor
-struct copy_cuda_data
-{
-    // first overload uses a single GPU Matrix
-    caffe2::TensorCUDA operator()(const gpu_mat arg,
-                                  unsigned int channels,
-                                  unsigned int rows,
-                                  unsigned int cols) const;
-
-    // second overload uses a vector of GPU matrices
-    caffe2::TensorCUDA operator()(const std::vector<gpu_mat> arg,
-                                  unsigned int channels,
-                                  unsigned int rows,
-                                  unsigned int cols) const;
+                       unsigned int channels = 3) const;
 };
 
 // @brief create a CUDA tensor from split channel data
 struct make_cuda_tensor
 {
     // first overload uses a single GPU Matrix
-    caffe2::TensorCUDA operator()(const gpu_mat arg,
-                                  unsigned int channels,
-                                  cv::Size geometry) const;
+    void operator()(caffe2::TensorCUDA & tensor,
+                    const gpu_mat arg,
+                    unsigned int channels = 3,
+                    cv::Size geometry = cv::Size(224, 224)) const;
 };
 
 }

@@ -68,16 +68,16 @@ target_link_libraries(${LIBTARGET}                      ${CUDA_LIBRARIES}
 set_target_properties(${LIBTARGET} 
                       PROPERTIES INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-#add_executable(example main.cpp)
-#target_link_libraries(example ${LIBTARGET}
-#                     ${CUDA_LIBRARIES}
-#                     ${OpenCV_LIBS}
-#                     ${Caffe_GPU_LIB}
-#                     ${Caffe_CPU_LIB}
-#                     ${ZBAR_LIBRARIES}
-#                     ${GLOG_LIB}
-#                     ${CURAND_LIBRARY}
-#                     )
+add_executable(example example.cpp)
+target_link_libraries(example ${LIBTARGET}
+                     ${CUDA_LIBRARIES}
+                     ${OpenCV_LIBS}
+                     ${Caffe_GPU_LIB}
+                     ${Caffe_CPU_LIB}
+                     ${ZBAR_LIBRARIES}
+                     ${GLOG_LIB}
+                     ${CURAND_LIBRARY}
+                     )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 set_property(TARGET ${LIBTARGET} PROPERTY CXX_STANDARD 14)
